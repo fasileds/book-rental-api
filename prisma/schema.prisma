@@ -1,0 +1,78 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// prisma/schema.prisma
+model User {
+  id          String   @id @default(uuid()) @unique
+  name        String
+  email       String   @unique
+  password    String
+  booksRented UserBook[]
+}
+
+model Owner {
+  id        String   @id @default(uuid()) @unique
+  name      String
+  email     String   @unique
+  password  String
+  balance   Int      @default(0)
+  phoneNo   String
+  addrasse  String
+  isChecked Boolean  @default(false)
+  isAdmin   Boolean  @default(false)
+  books     Book[]
+  transactions Transaction[] // Added relation to Transaction model
+}
+
+model Book {
+  id         String   @id @default(uuid()) @unique
+  title      String
+  author     String
+  ownerId    String
+  owner      Owner    @relation(fields: [ownerId], references: [id])
+  users      UserBook[]
+  isAproved  Boolean  @default(false)
+  isRented   Boolean  @default(false)
+  isAvailable Boolean @default(true)
+  amount     Int      @default(1)
+  price      Int
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+}
+
+model UserBook {
+  id        String   @id @default(uuid())
+  userId    String
+  bookId    String
+  user      User     @relation(fields: [userId], references: [id])
+  book      Book     @relation(fields: [bookId], references: [id])
+
+  @@unique([userId, bookId])
+}
+
+model Category {
+  id    String @id @default(uuid())
+  name  String @unique
+  books Book[]
+}
+
+model Transaction {
+  id          String   @id @default(uuid()) @unique
+  amount      Int
+  createdAt   DateTime @default(now())
+  ownerId     String
+  owner       Owner    @relation(fields: [ownerId], references: [id])
+  description String?  // Optional field for additional details
+}
