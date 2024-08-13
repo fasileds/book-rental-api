@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  chaking,
   createBooks,
   deleteBooks,
   getAllBooks,
@@ -16,10 +17,11 @@ const routes = express.Router();
 routes.get("/", verifyToken, getAllBooks);
 routes.post("/createBook", verifyToken, createBooks);
 routes.get("/find/:id", getSingleBook);
-routes.put("/updateUser/:id", verifyToken, updateBooks);
-routes.delete("/deletUser/:id", verifyToken, deleteBooks);
+routes.put("/updateBooks/:id", verifyToken, updateBooks);
+routes.delete("/deleteBook/:bookId", verifyToken, deleteBooks);
 routes.get("/serchBooks", searchBooks);
 routes.get("/getOwnersBook", verifyToken, getOwnersBooks);
 routes.get("/getValidBook", getValidBooks);
+routes.put("/chaked/:id", chaking);
 
 export default routes;

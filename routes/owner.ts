@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  chaking,
   deleteOwners,
   getAllOwners,
   getOwnerStatus,
@@ -11,9 +12,10 @@ import { verifyToken } from "../midleware/varifayToken";
 const routes = express.Router();
 
 routes.get("/", verifyToken, getAllOwners);
-routes.get("/:id", getSingleOwner);
+routes.get("/find/:id", getSingleOwner);
 routes.put("/updateOwners/:id", verifyToken, updateOwners);
 routes.delete("/deleteOwners/:id", verifyToken, deleteOwners);
-routes.delete("/ownersStatuse/:ownerId", verifyToken, getOwnerStatus);
+routes.get("/ownersStatuse/:ownerId", verifyToken, getOwnerStatus);
+routes.put("/approveUser/:id", chaking);
 
 export default routes;

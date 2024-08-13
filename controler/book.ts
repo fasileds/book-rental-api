@@ -132,7 +132,7 @@ export const deleteBooks = async (req: Request, res: Response) => {
   }
 
   try {
-    const bookId = req.params.id;
+    const { bookId } = req.params;
     const book = await prisma.book.findUnique({
       where: { id: bookId },
     });
@@ -174,8 +174,6 @@ export const updateBooks = async (
 
   try {
     const bookId = req.params.id;
-
-    // Check if the book exists and if the user is allowed to update it
     const book = await prisma.book.findUnique({
       where: { id: bookId },
     });
@@ -241,6 +239,7 @@ export const searchBooks = async (req: Request, res: Response) => {
   const { title, category, author } = req.query;
 
   try {
+    // Prepare where conditions
     const whereConditions: any = {};
 
     if (title) {
@@ -263,10 +262,15 @@ export const searchBooks = async (req: Request, res: Response) => {
         mode: "insensitive",
       };
     }
+
+    console.log("Where conditions:", whereConditions); // Debug info
+
+    // Fetch books based on the where conditions
     const books = await prisma.book.findMany({
       where: whereConditions,
     });
 
+    console.log("Books found:", books); // Debug info
     res.status(200).json(books);
   } catch (error) {
     console.error("Error searching for books:", error);
@@ -284,5 +288,27 @@ export const getValidBooks = async (req: Request, res: Response) => {
   } catch (error) {
     console.log(error);
     res.status(500).json(error);
+  }
+};
+
+export const chaking = async (req: Request, res: Response) => {
+  const { id } = req.params; // Extracting the id from req.params
+  const { isAproved } = req.body; // Extracting the isAproved value from req.body
+
+  try {
+    await prisma.book.update({
+      where: { id: id }, // Using the id from params
+      data: { isAproved: isAproved }, // Assigning the passed value to isAproved
+    });
+    res
+      .status(200)
+      .json({ message: "Book approval status updated successfully" });
+    console.log("Book approval status updated successfully");
+    console.log(isAproved);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      error: "An error occurred while updating the book approval status",
+    });
   }
 };

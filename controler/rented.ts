@@ -12,62 +12,53 @@ export const userRentBook = async (
     // Check if the book exists
     const book = await prisma.book.findUnique({
       where: { id: bookId },
-      include: { owner: true }, // Include the owner details
+      include: { owner: true },
     });
 
     if (!book) {
       return res.status(404).json({ message: "Book not found" });
     }
 
-    // Check if the book is already rented
-    if (book.isRented) {
-      return res.status(400).json({ message: "Book is already rented" });
-    }
+    // Use a transaction to handle multiple operations
+    const [rented, transaction, updatedOwner] = await prisma.$transaction([
+      prisma.userBook.create({
+        data: {
+          userId: userId,
+          bookId: bookId,
+        },
+      }),
+      prisma.book.update({
+        where: { id: bookId },
+        data: { isRented: true },
+      }),
+      prisma.transaction.create({
+        data: {
+          amount: book.price,
+          ownerId: book.ownerId,
+          description: `Book rented: ${book.title} by user ${userId}`,
+        },
+      }),
+      prisma.owner.update({
+        where: { id: book.ownerId },
+        data: { balance: { increment: book.price } },
+      }),
+    ]);
 
-    // Create a record in the userBook table
-    const rented = await prisma.userBook.create({
-      data: {
-        userId: userId,
-        bookId: bookId,
-      },
-    });
-
-    // Update the book status to rented
-    await prisma.book.update({
-      where: { id: bookId },
-      data: { isRented: true },
-    });
-
-    // Create a transaction record
-    const transaction = await prisma.transaction.create({
-      data: {
-        amount: book.price, // Assuming the price of the book is the transaction amount
-        ownerId: book.ownerId,
-        description: `Book rented: ${book.title} by user ${userId}`,
-      },
-    });
-
-    // Update the owner's balance
-    await prisma.owner.update({
-      where: { id: book.ownerId },
-      data: { balance: { increment: book.price } }, // Increment the owner's balance
-    });
-
-    res.status(201).json({ rented, transaction });
+    res.status(201).json({ rented, transaction, updatedOwner });
   } catch (error) {
     console.error("Error renting book:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
 export const removeRent = async (
-  req: Request<{ bookId: string }, {}, {}, { userId: string }>,
+  req: Request<{ bookId: string }>, // `bookId` from the route parameters
   res: Response
 ) => {
-  const userId = req.query.userId as string; // Access userId from query parameters
+  const { userId } = req.body; // Access `userId` from the request body
   const { bookId } = req.params;
 
   try {
-    // Check if the book is rented by the user
+    // Check if the rental record exists
     const rentedBook = await prisma.userBook.findUnique({
       where: {
         userId_bookId: {
@@ -75,37 +66,15 @@ export const removeRent = async (
           bookId: bookId,
         },
       },
-      include: {
-        book: true,
-      },
     });
 
     if (!rentedBook) {
-      console.log(
-        `No rental found for bookId: ${bookId} and userId: ${userId}`
-      );
       return res
         .status(404)
         .json({ message: "Rented book not found or already returned" });
     }
 
-    // Delete the transaction related to this rental
-    const transaction = await prisma.transaction.findFirst({
-      where: {
-        description: `Book rented: ${rentedBook.book.title} by user ${userId}`,
-        ownerId: rentedBook.book.ownerId,
-      },
-    });
-
-    if (transaction) {
-      await prisma.transaction.delete({
-        where: {
-          id: transaction.id,
-        },
-      });
-    }
-
-    // Delete the rental record from userBook
+    // Delete the rental record
     await prisma.userBook.delete({
       where: {
         userId_bookId: {

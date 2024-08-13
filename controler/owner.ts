@@ -47,11 +47,11 @@ export const deleteOwners = async (
       .json({ message: "You are not allowed to delete  users" });
   }
   try {
-    const ownerId = req.params.id;
+    const { id } = req.params;
 
     // Check if the owner exists before attempting to delete
     const owner = await prisma.owner.findUnique({
-      where: { id: ownerId },
+      where: { id: id },
     });
 
     if (!owner) {
@@ -60,7 +60,7 @@ export const deleteOwners = async (
 
     // Delete the owner
     await prisma.owner.delete({
-      where: { id: ownerId },
+      where: { id: id },
     });
 
     res.status(200).json({ message: "Owner deleted successfully" });
@@ -114,7 +114,7 @@ export const updateOwners = async (
 };
 
 export const getOwnerStatus = async (req: Request, res: Response) => {
-  const ownerId = req.params.id;
+  const { ownerId } = req.params;
   const user = req.user as Owner;
   const ability = defineAbility(user);
 
@@ -135,6 +135,25 @@ export const getOwnerStatus = async (req: Request, res: Response) => {
       by: ["categoryId"],
       where: { ownerId },
       _count: { id: true },
+    });
+
+    // Extract category IDs and filter out null values
+    const categoryIds = booksPerCategory
+      .map((bpc) => bpc.categoryId)
+      .filter((id): id is string => id !== null);
+
+    // Fetch category names using filtered IDs
+    const categories = await prisma.category.findMany({
+      where: { id: { in: categoryIds } },
+    });
+
+    // Map category names to the count data
+    const booksPerCategoryWithNames = booksPerCategory.map((bpc) => {
+      const category = categories.find((cat) => cat.id === bpc.categoryId);
+      return {
+        categoryName: category ? category.name : "Unknown",
+        count: bpc._count.id,
+      };
     });
 
     // Get all transactions for the current year
@@ -170,7 +189,7 @@ export const getOwnerStatus = async (req: Request, res: Response) => {
 
     const ownerStatus = {
       totalBooks,
-      booksPerCategory,
+      booksPerCategory: booksPerCategoryWithNames,
       monthlyBalance,
       totalBalance: totalBalance._sum.amount || 0,
     };
@@ -179,5 +198,21 @@ export const getOwnerStatus = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error getting owner status:", error);
     res.status(500).json({ message: "Internal server error", error });
+  }
+};
+export const chaking = async (req: Request, res: Response) => {
+  const { id } = req.params; // Extracting the id from req.params
+  console.log(id);
+  try {
+    await prisma.owner.update({
+      where: { id: id }, // Converting id to a number if it's an integer
+      data: { isChecked: true }, // Correct syntax for updating the data
+    });
+    res.status(200).json({ message: "Book approved successfully" });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while approving the book" });
   }
 };
